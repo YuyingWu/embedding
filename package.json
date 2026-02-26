@@ -4,7 +4,8 @@
   "description": "",
   "main": "worker.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "wrangler dev --remote",
+    "deploy": "wrangler deploy"
   },
   "repository": {
     "type": "git",
@@ -15,5 +16,9 @@
   "bugs": {
     "url": "https://github.com/YuyingWu/embedding/issues"
   },
-  "homepage": "https://github.com/YuyingWu/embedding#readme"
+  "homepage": "https://github.com/YuyingWu/embedding#readme",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260304.0",
+    "wrangler": "^4.68.1"
+  }
 }
