@@ -116,7 +116,7 @@ async function handleRequest(request, env) {
       return new Response(stream, {
         headers: {
           ...corsHeaders,
-          'Content-Type': 'text/x-unknown',
+          'Content-Type': 'text/x-unknown; charset=utf-8',
           'X-Content-Type-Options': 'nosniff',
         }
       });
@@ -190,7 +190,7 @@ ${context}`;
     return new Response(readable, {
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/x-unknown',
+        'Content-Type': 'text/x-unknown; charset=utf-8',
         'X-Content-Type-Options': 'nosniff',
       }
     });
