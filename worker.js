@@ -108,16 +108,14 @@ async function handleRequest(request, env) {
       const fallbackText = '抱歉，这个问题暂时没办法回答。';
       const stream = new ReadableStream({
         start(controller) {
-          // Vercel AI SDK v3 stream protocol: 0:"text"\n then e:{}\n to signal end
-          controller.enqueue(encoder.encode(`0:${JSON.stringify(fallbackText)}\ne:{}\n`));
+          controller.enqueue(new TextEncoder().encode(fallbackText));
           controller.close();
         }
       });
       return new Response(stream, {
         headers: {
           ...corsHeaders,
-          'Content-Type': 'text/x-unknown; charset=utf-8',
-          'X-Content-Type-Options': 'nosniff',
+          'Content-Type': 'text/plain; charset=utf-8',
         }
       });
     }
@@ -172,7 +170,8 @@ ${context}`;
               try {
                 const chunk = JSON.parse(line.slice(6));
                 if (chunk.response) {
-                  await writer.write(encoder.encode(`0:${JSON.stringify(chunk.response)}\n`));
+                  // TextStreamChatTransport expects raw UTF-8 text, not 0:"..." protocol
+                  await writer.write(encoder.encode(chunk.response));
                 }
               } catch (e) {
                 // skip malformed SSE chunks
@@ -180,7 +179,6 @@ ${context}`;
             }
           }
         }
-        await writer.write(encoder.encode(`e:{}\n`));
         await writer.close();
       } catch (e) {
         await writer.abort(e);
@@ -190,8 +188,7 @@ ${context}`;
     return new Response(readable, {
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/x-unknown; charset=utf-8',
-        'X-Content-Type-Options': 'nosniff',
+        'Content-Type': 'text/plain; charset=utf-8',
       }
     });
   }
