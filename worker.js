@@ -57,6 +57,7 @@ async function handleRequest(request, env) {
       returnValues: false,
       returnMetadata: "all"
     });
+    matches.matches = matches.matches.filter(m => m.score >= 0.30);
 
     return Response.json({ results: matches.matches }, { headers: corsHeaders });
   }
