@@ -2,99 +2,69 @@
 
 ## 项目简介
 
-本项目是一个基于 Cloudflare 生态（“全家桶”）的 RAG (Retrieval-Augmented Generation，检索增强生成) 应用。利用 Cloudflare Workers、Cloudflare Workers AI 和 Cloudflare Vectorize 构建一个无服务器的端到端问答系统。
+本项目是一个基于 Cloudflare 生态（“全家桶”）的全栈 RAG (Retrieval-Augmented Generation，检索增强生成) 应用。
+应用分为 **前端（Next.js）** 与 **后端（Cloudflare Worker）**，并在部署时利用 Cloudflare Workers Static Assets 绑定在同一个服务和域名下，无缝实现端到端的 AI 智能问答系统。
 
-当前工程的核心目标如下：
+当前工程的核心功能：
+1. **内容向量化与存储 (Offline)**：将本地 Markdown 等知识库文档切片，利用 Cloudflare Workers AI (`@cf/baai/bge-m3`) 转化为高维向量，并存储在 Cloudflare Vectorize 数据库中。
+2. **全栈智能问答 (Online)**：拥有现代化的 Next.js 网页聊天界面。后端接收 Query 后，实时检索最接近的知识片段，再结合大型语言模型 (`@cf/meta/llama-3.1-8b-instruct-awq`) 进行流式 (Streaming) 自然语言推理与对话。
 
-1. **内容向量化与存储 (Vectorization & Storage)**：
-   将本地的内容文档（如 Markdown 文件）进行切片（Chunking），利用 Cloudflare Workers AI 提供的嵌入模型（例如当前使用的 `@cf/baai/bge-m3`）将其转化为向量（Embeddings），并存储在 Cloudflare 的向量数据库 Vectorize 中。
-
-2. **基于大模型的 RAG 信息检索与返回 (RAG & LLM Generation)**：
-   接收用户的查询请求（Query），将其实时转化为向量后，在 Vectorize 数据库中检索语义最相关的原文段落（Context）。随后，将检索出的上下文结合用户的 Prompt，利用 Cloudflare Workers AI 调用免费的大型语言模型（LLM，例如 Llama 系列），生成并返回最终的智能回答。
+---
 
 ## 系统架构设计
 
-本系统采用完全 Serverless 的架构模式，依托 Cloudflare 生态圈完成。整体工作流分为两个主要阶段：**知识库构建（Offline 阶段）** 和 **问答检索与生成（Online 阶段）**。
+系统将业务逻辑清晰地拆分为两大模块：**前端交互模块 (Frontend)** 和 **后端 AI 服务模块 (Backend)**。
 
-```mermaid
-graph TD
-    subgraph Offline[阶段一: 知识库构建 / 文档向量化]
-        A[本地文档 / Markdown] -->|sync-content.mjs| B[文件读取与分块切片]
-        B -->|POST /insert HTTP 请求| C[Cloudflare Worker]
-        C -->|调用 @cf/baai/bge-m3| D[Cloudflare Workers AI\n文本转向量]
-        D -->|Vector Embeddings| E[(Cloudflare Vectorize\n向量数据库)]
-    end
+### 1. 前端交互模块 (`frontend/`)
+采用 **Next.js (App Router)** 框架构建的现代化单页网页前端。
+- **动态交互**：使用 Vercel AI SDK (`@ai-sdk/react`) 提供类似于 ChatGPT 的流式打字机对话体验。
+- **静态导出**：配置了 `output: "export"`，在构建时将所有页面和组件转化为静态 HTML/CSS/JS 资源。
+- **自动环境适配**：代码自动侦测开发环境，本地调试时跨域请求运行在 8787 端口的后端调试服 (`http://localhost:8787`)；生产打包后使用智能相对路径进行同源请求。
 
-    subgraph Online[阶段二: RAG 检索并生成回答]
-        F[用户 Query 请求] -->|GET /search?q=...| C
-        C -->|调用 @cf/baai/bge-m3| G[Cloudflare Workers AI\nQuery转向量]
-        G -->|相似度检索| E
-        E -.->|返回最相关的段落 Context| C
-        C -->|Context + Query| H[Cloudflare Workers AI\nLLM推理 (如 Llama 3)]
-        H -.->|生成自然语言| I[最终答案返回]
-    end
-    
-    style Offline fill:#f9f2f4,stroke:#333,stroke-width:1px;
-    style Online fill:#e6f2ff,stroke:#333,stroke-width:1px;
-    style E fill:#fff2cc,stroke:#d6b656,stroke-width:2px;
-    style C fill:#d5e8d4,stroke:#82b366,stroke-width:2px;
-```
+### 2. 后端 AI 服务模块 (`worker.js` / 根目录)
+采用 **Cloudflare Workers** 打造的 Serverless 服务中心，串联所有 AI 服务。
+- **静态资产托管 (Static Assets)**：自动捕获并返回前端构建后的产物资源。
+- **RAG 智能对话接口 (`POST /chat`)**：响应前端的对话请求。
+  - *Retrieve*：接收问题，通过 `@cf/baai/bge-m3` 模型将文本转化为向量。
+  - *Search*：检索 Cloudflare Vectorize 数据库，获取相关度最高（且符合置信度阈值）的短句上下文。
+  - *Generate*：严谨的 System Prompt 控制模型必须根据上下文回答，调用流式大模型 `@cf/meta/llama-3.1-8b-instruct-awq` 并进行 SSE 数据格式转换推送给前端。
+- **数据入库接口 (`POST /insert` & `POST /delete`)**：响应内部数据维护脚本，支持增量知识片段库的管理。
 
-### 各核心模块的作用及关系：
+---
 
-1. **同步脚本 (`sync-content.mjs`)**：负责离线数据处理。它读取本地的内容（如 Markdown），将长文本切分成长度适中的段落，并批量传给云端 Worker。
-2. **核心业务中枢 (`worker.js`)**：不仅作为 API 路由的入口，更充当串统各个 AI 服务的枢纽。负责请求的验证、与 AI 模型的交互、读写 Vectorize。
-3. **AI 推理引擎 (`Cloudflare Workers AI`)**：提供双重能力：一方面利用 Embedding 模型完成段落和搜索词向量化，另一方面使用免费的 LLM 大语言模型基于 Context 进行逻辑推导和问答生成。
-4. **向量数据库 (`Cloudflare Vectorize`)**：针对 Workers AI 计算出的高维向量特征数据（如 1024 维）做快速的增删改以及基于余弦相似度（Cosine Similarity）的匹配。
+## 核心文件结构解析
 
-## 文件结构说明
+- **`/frontend/`**：Next.js 前端代码库，UI 及组件。
+- **`worker.js`**：后端主程序代码，承载检索、向量转化、LLM 流式处理等所有 API 逻辑。
+- **`sync-content.mjs`**：Node.js 工具脚本，负责读取本地 `./content` 下的文件，分块切割后同步至云端 Worker 入库。
+- **`wrangler.toml`**：核心云端部署文件，清晰定义了绑定的云资源：大型模型 AI 引擎 (`binding = "AI"`)、向量数据库 (`binding = "VECTORIZE"`) 以及静态页面托管 (`[assets]`)。
 
-- **`worker.js`**：Cloudflare Worker 后端主程序，目前实现了两个接口：
-  - `POST /insert`：接收文档切片请求，调用 AI 返回文档 Embeddings，写入到 Vectorize 数据库中。
-  - `GET /search`：接收用户查询词，通过 AI 生成查询向量检索 Vectorize 并返回匹配项。（待进一步结合 LLM 提供最终的 RAG 总结输出）。
-- **`sync-content.mjs`**：Node.js 同步脚本。负责读取外部文件夹（`./content` 下的 `year-2025.md` 等）的内容，按段落和固定长度进行文本切片，并分发至 Worker 服务的 `/insert` 接口。
-- **`wrangler.toml`**：Wrangler 的配置文件，绑定了 AI（`binding = "AI"`）和 Vectorize 向量库（`binding = "VECTORIZE"`，名称为 `markdown-vectors`）。
-- **`package.json`**：项目依赖描述文件和常用脚本定义。
+---
 
-## 运行与部署指南
+## 🛠 开发与部署指南
 
-### 1. 安装依赖
+项目已实现完全的自动化构建与环境隔离解耦。
 
-```bash
-npm install
-```
+无论是**本地开发时的全栈独立热更新方案**，还是**一键自动上云部署方案 (npm run deploy)**，详细的步骤都浓缩在专项文档中，请查阅：
 
-### 2. 准备 Vectorize 数据库
+👉 **[开发与部署指南 (DEV.md)](./DEV.md)**
 
-确保已通过 Wrangler 创建与之匹配的 Vectorize 索引：
-```bash
-npx wrangler vectorize create markdown-vectors --dimensions=1024 --metric=cosine
-```
-*(注意：`@cf/baai/bge-m3` 模型的输出维度为 1024)*
+---
 
-### 3. 启动本地开发服务器
+## 🏗 数据准备 (文档导入向量库)
 
-运行以下命令启动 Worker（带上 `--remote` 访问远程资源）：
-```bash
-npm run dev
-```
-Worker 默认将在 `http://localhost:8787` 运行。
+在你能对机器人发起提问之前，必须先将知识源写入向量引擎：
 
-### 4. 向量化本地文档并存入 Vectorize
-
-准备好待分析的文档存放于 `./content` 目录下，并在新终端中执行：
-```bash
-node sync-content.mjs
-```
-脚本将切割文档，并分发上传至 `POST http://localhost:8787/insert` 完成向量生成和存储。
-
-### 5. 执行搜索查询
-
-发起 GET 请求进行搜索测试：
-```bash
-curl "http://localhost:8787/search?q=你需要查询的内容"
-```
-当前接口将返回与查询相关度最高的文档片段。
-
-## 下一步计划 (TODO)
-- **接入大型语言模型 (LLM)**：在 `/search` 拿到相似文本块后，将其组合成上下文 Context，并结合用户的 Query，通过 `env.AI.run()` 发送至系统免费的大型对话模型（如 `@cf/meta/llama-3-8b-instruct`）进行归纳整理，将生成式的自然语言反馈返回给用户。
+1. **初始化 Vectorize 索引库** (1024 维度对应使用的高精度嵌入模型)：
+   ```bash
+   npx wrangler vectorize create markdown-vectors --dimensions=1024 --metric=cosine
+   ```
+2. **启动本地开发后端**：
+   ```bash
+   npm run dev
+   ```
+3. **入库文档**：打开一个新的命令终端，运行同步脚本，将 `./content` 文件夹中的 `.md` 文档分析入库：
+   ```bash
+   node sync-content.mjs
+   ```
+   *(脚本将自动切割长文档并推送到本机的 Worker，最终保存到云端的 Vectorize 数据库中)*

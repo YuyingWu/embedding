@@ -5,7 +5,7 @@
   "main": "worker.js",
   "scripts": {
     "dev": "wrangler dev --remote",
-    "test-worker": "node test-worker.mjs",
+    "verify-chat": "node verify-chat.mjs",
     "build:frontend": "cd frontend && npm install && npm run build",
     "deploy": "npm run build:frontend && wrangler deploy"
   },
