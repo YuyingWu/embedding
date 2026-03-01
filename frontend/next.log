@@ -1,0 +1,32 @@
+
+> frontend@0.1.0 dev
+> next dev
+
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of D:\playground\embedding\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * D:\playground\embedding\frontend\package-lock.json
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://198.18.0.1:3000
+
+✓ Starting...
+✓ Ready in 12.2s
+○ Compiling / ...
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at Chat (src\app\page.tsx:84:45)
+  82 |             <button
+  83 |               type="submit"
+> 84 |               disabled={isLoading || !input.trim()}
+     |                                             ^
+  85 |               className="absolute right-2 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 dark:bg-zinc-100 dark:text-zinc-900"
+  86 |             >
+  87 |               <svg {
+  digest: '1426612168'
+}
+ GET / 500 in 11.5s (compile: 10.9s, render: 659ms)
+ GET / 200 in 399ms (compile: 121ms, render: 278ms)
+ GET / 200 in 168ms (compile: 11ms, render: 157ms)
