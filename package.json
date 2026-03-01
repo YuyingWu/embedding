@@ -5,6 +5,7 @@
   "main": "worker.js",
   "scripts": {
     "dev": "wrangler dev --remote",
+    "test-worker": "node test-worker.mjs",
     "deploy": "wrangler deploy"
   },
   "repository": {

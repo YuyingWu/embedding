@@ -131,8 +131,8 @@ ${context}`;
       }))
     ];
 
-    // 6. Call Qwen with streaming
-    const llmStream = await env.AI.run('@cf/qwen/qwen1.5-14b-chat-awq', {
+    // 6. Call LLM with streaming
+    const llmStream = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-awq', {
       messages: llmMessages,
       stream: true
     });

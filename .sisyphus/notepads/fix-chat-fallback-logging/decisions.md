@@ -1,0 +1,1 @@
+- Updated worker.js /search route to filter Vectorize matches with score >= 0.30 to improve search result quality.

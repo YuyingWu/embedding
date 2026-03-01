@@ -1,7 +1,7 @@
 {
-  "active_plan": "/mnt/d/playground/embedding/.sisyphus/plans/cloudflare-rag-nextjs.md",
-  "started_at": "2026-03-01T05:17:10.315Z",
+  "active_plan": "/mnt/d/playground/embedding/.sisyphus/plans/fix-chat-fallback-logging.md",
+  "started_at": "2026-03-01T08:40:15.913Z",
   "session_ids": ["ses_3583f3d61ffe0b03Ed4XWFb7kb"],
-  "plan_name": "cloudflare-rag-nextjs",
+  "plan_name": "fix-chat-fallback-logging",
   "worktree_path": "/mnt/d/playground/embedding"
 }
