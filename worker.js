@@ -10,6 +10,10 @@ export default {
           return new Response('Invalid input', { status: 400 });
         }
 
+        if (data.chunks.length === 0) {
+          return Response.json({ success: true, inserted: { count: 0 }, message: 'No chunks provided.' });
+        }
+
         const texts = data.chunks.map(c => c.text);
 
         // Generate embeddings using the recommended Chinese model @cf/baai/bge-m3
@@ -49,6 +53,22 @@ export default {
         });
 
         return Response.json({ results: matches.matches });
+      } catch (err) {
+        return Response.json({ error: err.message }, { status: 500 });
+      }
+    }
+
+    if (url.pathname === '/delete' && request.method === 'POST') {
+      try {
+        const data = await request.json();
+        if (!data.ids || !Array.isArray(data.ids) || data.ids.length === 0) {
+          return new Response('Missing or invalid query param ids array', { status: 400 });
+        }
+
+        // Delete from the Vectorize index
+        const results = await env.VECTORIZE.deleteByIds(data.ids);
+
+        return Response.json({ success: true, deleted: results });
       } catch (err) {
         return Response.json({ error: err.message }, { status: 500 });
       }
