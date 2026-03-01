@@ -104,25 +104,13 @@ async function handleRequest(request, env) {
       returnMetadata: "all"
     });
 
-    // 3. Strict fallback: no matches or top score < 0.75
-    if (!matches.matches || matches.matches.length === 0 || matches.matches[0].score < 0.75) {
-      const fallbackText = '抱歉，这个问题暂时没办法回答。';
-      const stream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode(fallbackText));
-          controller.close();
-        }
-      });
-      return new Response(stream, {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'text/plain; charset=utf-8',
-        }
-      });
-    }
+    console.log('User Question:', userQuestion);
+    console.log('Matches Length:', matches.matches?.length || 0);
+    console.log('Top Match Score:', matches.matches?.[0]?.score);
+    console.log('Top Match Text Snippet:', matches.matches?.[0]?.metadata?.text?.slice(0, 100));
 
     // 4. Build context from matched chunks
-    const context = matches.matches.map(m => m.metadata.text).join('\n\n');
+    const context = (matches.matches || []).map(m => m.metadata.text).join('\n\n');
 
     // 5. System prompt
     const systemPrompt = `你是一名私人助理，这是一个ask me anything的问答系统，只可以回答跟主人公相关（知识库内匹配的信息）的信息。
