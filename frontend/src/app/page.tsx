@@ -6,7 +6,9 @@ import { useEffect, useRef, useState } from "react";
 
 export default function Chat() {
   const { messages, sendMessage, status } = useChat({
-    transport: new TextStreamChatTransport({ api: "http://localhost:8787/chat" }),
+    transport: new TextStreamChatTransport({
+      api: process.env.NODE_ENV === "development" ? "http://localhost:8787/chat" : "/chat",
+    }),
   });
 
   const [input, setInput] = useState("");
@@ -39,16 +41,14 @@ export default function Chat() {
             messages.map((m) => (
               <div
                 key={m.id}
-                className={`flex w-full ${
-                  m.role === "user" ? "justify-end" : "justify-start"
-                } animate-[slideUp_0.3s_ease-out_forwards] opacity-0`}
+                className={`flex w-full ${m.role === "user" ? "justify-end" : "justify-start"
+                  } animate-[slideUp_0.3s_ease-out_forwards] opacity-0`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed ${
-                    m.role === "user"
+                  className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed ${m.role === "user"
                       ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
                       : "bg-white shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800"
-                  }`}
+                    }`}
                 >
                   {m.parts
                     .filter((p): p is { type: "text"; text: string } => p.type === "text")

@@ -10,6 +10,6 @@ binding = "VECTORIZE"
 index_name = "markdown-vectors"
 remote = true
 
-[dev]
-port = 3000
-ip = "0.0.0.0"
+[assets]
+directory = "frontend/out"
+binding = "ASSETS"

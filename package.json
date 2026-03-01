@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "wrangler dev --remote",
     "test-worker": "node test-worker.mjs",
-    "deploy": "wrangler deploy"
+    "build:frontend": "cd frontend && npm run build",
+    "deploy": "npm run build:frontend && wrangler deploy"
   },
   "repository": {
     "type": "git",
