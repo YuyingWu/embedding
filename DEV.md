@@ -70,6 +70,6 @@ npm run deploy
 > 2. Next.js 会将页面生成纯静态 HTML/CSS/JS 资源，输出至 `frontend/out` 文件夹。
 > 3. npm 接着执行 `wrangler deploy`：向 Cloudflare 云端发布 Worker。
 > 4. 在云端编译并部署时，Wrangler 会读取 `wrangler.toml` 中的 `[assets]` 配置区，将前面打包好的 `frontend/out` 静态文件一起打包并上载至此 Worker 中。
-> 5. 当外部直接使用浏览器请求此应用域名时，对于那些不属于你后台自身接管的 API 路由，`worker.js` 中的底层兜底回调代码 `return env.ASSETS.fetch(request);` 便会自动响应用户对应的网页。
+> 5. 当外部直接使用浏览器请求此应用域名时，对于那些不属于你后台自身接管的 API 路由，`worker.ts` 中 Hono 的兜底路由 `app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw))` 便会自动响应用户对应的网页。
 
 部署进度流转完成后，终端界面会向你输出形如 `https://embedding-app.<your-subdomain>.workers.dev` 的线上最终全站地址。

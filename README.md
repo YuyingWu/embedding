@@ -21,7 +21,7 @@
 - **静态导出**：配置了 `output: "export"`，在构建时将所有页面和组件转化为静态 HTML/CSS/JS 资源。
 - **自动环境适配**：代码自动侦测开发环境，本地调试时跨域请求运行在 8787 端口的后端调试服 (`http://localhost:8787`)；生产打包后使用智能相对路径进行同源请求。
 
-### 2. 后端 AI 服务模块 (`worker.js` / 根目录)
+### 2. 后端 AI 服务模块 (`worker.ts` / 根目录)
 采用 **Cloudflare Workers** 打造的 Serverless 服务中心，串联所有 AI 服务。
 - **静态资产托管 (Static Assets)**：自动捕获并返回前端构建后的产物资源。
 - **RAG 智能对话接口 (`POST /chat`)**：响应前端的对话请求。
@@ -35,7 +35,11 @@
 ## 核心文件结构解析
 
 - **`/frontend/`**：Next.js 前端代码库，UI 及组件。
-- **`worker.js`**：后端主程序代码，承载检索、向量转化、LLM 流式处理等所有 API 逻辑。
+- **`worker.ts`**：后端主程序入口，使用 **Hono** 路由框架按路径独立注册各 API 接口（`/insert`、`/search`、`/delete`、`/chat`）。
+- **`/utils/`**：后端公共模块。
+  - `const.ts`：CORS 头、AI 模型名、查询默认参数等常量。
+  - `request.ts`：`jsonResponse` / `errorResponse` / `streamResponse` 统一响应工具函数。
+  - `ai_worker.ts`：`queryVectorize` — 向量化查询 + Vectorize 检索的核心函数。
 - **`sync-content.mjs`**：Node.js 工具脚本，负责读取本地 `./content` 下的文件，分块切割后同步至云端 Worker 入库。
 - **`wrangler.toml`**：核心云端部署文件，清晰定义了绑定的云资源：大型模型 AI 引擎 (`binding = "AI"`)、向量数据库 (`binding = "VECTORIZE"`) 以及静态页面托管 (`[assets]`)。
 

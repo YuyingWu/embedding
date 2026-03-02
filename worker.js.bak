@@ -49,17 +49,8 @@ async function handleRequest(request, env) {
       return new Response('Missing query param q', { status: 400, headers: corsHeaders });
     }
 
-    const aiResponse = await env.AI.run('@cf/baai/bge-m3', { text: [query] });
-    const queryVector = aiResponse.data[0];
-
-    const matches = await env.VECTORIZE.query(queryVector, {
-      topK: 5,
-      returnValues: false,
-      returnMetadata: "all"
-    });
-    matches.matches = matches.matches.filter(m => m.score >= 0.30);
-
-    return Response.json({ results: matches.matches }, { headers: corsHeaders });
+    const results = await queryVectorize(env, query);
+    return Response.json({ results }, { headers: corsHeaders });
   }
 
   if (url.pathname === '/delete' && request.method === 'POST') {
@@ -93,24 +84,24 @@ async function handleRequest(request, env) {
 
     const encoder = new TextEncoder();
 
-    // 1. Embed the user question
-    const aiResponse = await env.AI.run('@cf/baai/bge-m3', { text: [userQuestion] });
-    const queryVector = aiResponse.data[0];
-
-    // 2. Query Vectorize top-10
-    const matches = await env.VECTORIZE.query(queryVector, {
-      topK: 10,
-      returnValues: false,
-      returnMetadata: "all"
-    });
+    // 1. Embed & query Vectorize
+    const matches = await queryVectorize(env, userQuestion);
 
     console.log('User Question:', userQuestion);
-    console.log('Matches Length:', matches.matches?.length || 0);
-    console.log('Top Match Score:', matches.matches?.[0]?.score);
-    console.log('Top Match Text Snippet:', matches.matches?.[0]?.metadata?.text?.slice(0, 100));
+    console.log('Matches Length:', matches.length);
+    console.log('Top Match Score:', matches[0]?.score);
+    console.log('Top Match Text Snippet:', matches[0]?.metadata?.text);
 
-    // 4. Build context from matched chunks
-    const context = (matches.matches || []).map(m => m.metadata.text).join('\n\n');
+    // 2. Short-circuit if no relevant context was found
+    if (matches.length === 0) {
+      const fallback = '抱歉，这个问题暂时没办法回答。';
+      return new Response(fallback, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
+      });
+    }
+
+    // 3. Build context from matched chunks
+    const context = matches.map(m => m.metadata.text).join('\n\n');
 
     // 5. System prompt
     const systemPrompt = `你是一名私人助理，这是一个ask me anything的问答系统，只可以回答跟主人公相关（知识库内匹配的信息）的信息。
@@ -183,4 +174,31 @@ ${context}`;
   }
 
   return env.ASSETS.fetch(request);
+}
+
+/**
+ * Embed a text query and search Vectorize for the closest vectors.
+ *
+ * @param {object} env         - Worker env bindings (AI, VECTORIZE)
+ * @param {string} queryText   - The natural-language query to embed
+ * @param {object} [options]
+ * @param {number} [options.topK=5]      - How many nearest neighbours to return
+ * @param {number} [options.minScore]    - Optional minimum score threshold (inclusive)
+ * @returns {Promise<Array>}   - Filtered array of Vectorize match objects
+ */
+async function queryVectorize(env, queryText, { topK = 5, minScore = 0.30 } = {}) {
+  const aiResponse = await env.AI.run('@cf/baai/bge-m3', { text: [queryText] });
+  const queryVector = aiResponse.data[0];
+
+  const result = await env.VECTORIZE.query(queryVector, {
+    topK,
+    returnValues: false,
+    returnMetadata: 'all',
+  });
+
+  let matches = result.matches || [];
+  if (minScore !== undefined) {
+    matches = matches.filter(m => m.score >= minScore);
+  }
+  return matches;
 }
